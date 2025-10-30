@@ -1,4 +1,5 @@
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 
 public class Gene {
@@ -11,10 +12,12 @@ public class Gene {
     // gene_transcripts: to link the transcripts to gene
     ArrayList<Transcript> gene_transcripts;
 
-    public Gene(String geneId, String geneSymbol){
+    public Gene(String geneId, String geneSymbol, String chromosome, String Gstrand){
         this.gene_id = geneId;
         this.gene_symbol = geneSymbol;
-        this.gene_transcripts = new ArrayList();
+        this.chr = chromosome;
+        this.strand = Gstrand;
+        this.gene_transcripts = new ArrayList<Transcript>();
     }
 
     public void addTranscript(Transcript transcript){
@@ -30,5 +33,20 @@ public class Gene {
 
     public List<Transcript> getGene_transcripts() {
         return gene_transcripts;
+    }
+
+    //nports counter map for distinction
+    public int countUniqueProteins() {
+        HashSet<String> uniqueProteinIds = new HashSet<>();
+        
+        for (Transcript t : gene_transcripts) {
+            for (String proteinId : t.protein_ids) {
+                if (proteinId != null && !proteinId.isEmpty()) {
+                    uniqueProteinIds.add(proteinId);
+                }
+            }
+        }
+        
+        return uniqueProteinIds.size();
     }
 }
