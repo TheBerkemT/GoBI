@@ -50,7 +50,7 @@ public class ExonSkipNotice {
         t.exon_regions.sort(Comparator.comparingInt(CDS::getStart));
 
         for(int k = 0; k < t.exon_regions.size()-1 ; k++){
-            int intronStart = t.exon_regions.get(k).getEnd() + 1;
+            int intronStart = t.exon_regions.get(k).getEnd()+1; // + 1;
             int intronEnd = t.exon_regions.get(k + 1).getStart();
             
             if (intronStart <= intronEnd) {
@@ -155,7 +155,7 @@ public class ExonSkipNotice {
                         }
                     }
                     
-                    // Calculate with deduplicated data
+                    // Calculate with filtered duplicated data so no duplicate
                     int[] exonmm = min_max_exons(uniqueWtRegions);
                     int[] basemm = min_max_bases(uniqueWtRegions, sv_intron, uniqueWtTranscripts);
 
@@ -172,7 +172,7 @@ public class ExonSkipNotice {
                             nprots,
                             ntrans,
                             sv_intron,
-                            uniqueWtRegions,  // Use deduplicated
+                            uniqueWtRegions,  // Use filtered
                             sv_temp,          // SV_prots (will be swapped in constructor)
                             wt_temp,          // WT_prots (will be swapped in constructor)
                             exonmm[0],
@@ -208,13 +208,14 @@ public class ExonSkipNotice {
             // Find all exons in this WT that fall within the SV intron region
             for (CDS exon : wt.exon_regions) {
                 // Check if exon is completely within the SV intron boundaries
-                if (exon.start >= sv_intron.start && exon.end <= sv_intron.end) {
-                    totalBases += (exon.end - exon.start + 1);
+                if (exon.start > sv_intron.start && exon.end < sv_intron.end) {
+                    totalBases += (exon.end - exon.start +1);//+ 1 cut of for test
+                    
                 }
                 // Handle partial overlaps if needed (depends on your definition)
                 // For now, we only count fully contained exons
             }
-
+            
             if (totalBases > max) max = totalBases;
             if (totalBases < min) min = totalBases;
         }
@@ -232,19 +233,15 @@ public class ExonSkipNotice {
         int min = Integer.MAX_VALUE;
 
         for (ArrayList<IntronRegion> irl : wt_regions) {
-            int size = irl.size();
+            int size = irl.size() - 1;
+
             if (size > max) max = size;
             if (size < min) min = size;
         }
 
-        // handle edge case: empty input
-        if (wt_regions.isEmpty()) {
+        // handle edge case for empty input
+        if (wt_regions.isEmpty() || min == Integer.MAX_VALUE) {
             min = 0;
-            max = 0;
-        } else {
-            //adjust since we are counting introns, just do -1 since intron-exon-intron for skips
-            if (min > 0) min = min - 1;
-            if (max > 0) max = max - 1;
         }
 
         return new int[]{min, max};
@@ -265,80 +262,3 @@ public class ExonSkipNotice {
         return s;
     }
 }
-
-
-/*
- * public static ArrayList<ExonSkipNotice> exonSkips(Gene geneToGetSkips) {
-        ArrayList<ExonSkipNotice> exonSkipRegions = new ArrayList<>();
-        HashMap<String, ExonSkipNotice> skipMap = new HashMap<>();
-
-        for (Transcript sv : geneToGetSkips.gene_transcripts) {
-            // Loop over all SV introns
-            for (IntronRegion sv_intron : sv.intron_regions) {
-
-                boolean wt_exists = false;
-                ArrayList<String> sv_temp = new ArrayList<>();
-                sv_temp.add(protIdParser(sv.protein_ids));
-
-                ArrayList<String> wt_temp = new ArrayList<>();
-                ArrayList<ArrayList<IntronRegion>> wt_regions = new ArrayList<>();
-                ArrayList<Transcript> wt_transcripts_list = new ArrayList<>();
-
-                // Compare to all other transcripts in this gene
-                for (Transcript wt : geneToGetSkips.gene_transcripts) {
-                    if (sv == wt) continue;
-
-                    // If WT transcript shares start/end boundaries
-                    if (intronMatch(sv_intron, wt)) {
-                        ArrayList<IntronRegion> regions = getRegionsIntrons(sv_intron, wt);
-
-                        // Same intron → also SV
-                        if (regions.size() == 1) {
-                            sv_temp.add(protIdParser(wt.protein_ids));
-                        }
-                        // More than 1 intron inside → WT form
-                        else if (regions.size() > 1) {
-                            wt_exists = true;
-                            wt_regions.add(regions);
-                            wt_transcripts_list.add(wt);
-                            wt_temp.add(protIdParser(wt.protein_ids));
-                        }
-                    }
-                }
-
-                // If a WT exists for this SV intron → record the event
-                if (wt_exists) {
-                    int[] exonmm = min_max_exons(wt_regions);
-                    int[] basemm = min_max_bases(wt_regions, sv_intron, wt_transcripts_list);
-
-                    int nprots = geneToGetSkips.countUniqueProteins();
-                    int ntrans = geneToGetSkips.gene_transcripts.size();
-
-                    String key = geneToGetSkips.gene_id + "_" + sv_intron.toString();
-                    if (!skipMap.containsKey(key)) {
-                        ExonSkipNotice event = new ExonSkipNotice(
-                            geneToGetSkips.gene_id,
-                            geneToGetSkips.gene_symbol,
-                            geneToGetSkips.chr,
-                            geneToGetSkips.strand,
-                            nprots,
-                            ntrans,
-                            sv_intron,
-                            wt_regions,
-                            wt_temp,    // WT first
-                            sv_temp,    // then SV
-                            exonmm[0],
-                            exonmm[1],
-                            basemm[0],
-                            basemm[1]
-                        );
-                        skipMap.put(key, event);
-                    }
-                }
-            }
-        }
-
-        exonSkipRegions.addAll(skipMap.values());
-        return exonSkipRegions;
-    }
- */
